@@ -8,7 +8,7 @@ $(out_dir)/%.o: %.c
 $(out_dir)/%.o: %.cpp
 	@echo $(describe_env) C++ $(describe_input)
 	@mkdir -p $(@D)
-	@$(CPP) $(DEPFLAGS) $(CFLAGS) -std=gnu++11 -c $< -o $@
+	@$(CPP) $(DEPFLAGS) $(CFLAGS) -std=$(CXXSTD) -c $< -o $@
 
 $(out_dir)/%.o: %.S
 	@echo $(describe_env) ASM $(describe_input)
@@ -36,7 +36,7 @@ $(out_dir)/%_swig.o: $(out_dir)/%_swig.c
 $(out_dir)/%_swig.o: $(out_dir)/%_swig.cpp
 	@echo $(describe_env) "C++(SWIG)" $(describe_input)
 	@mkdir -p $(@D)
-	@$(CPP) $(DEPFLAGS) $(CFLAGS.swig) -std=gnu++11 -c $< -o $@
+	@$(CPP) $(DEPFLAGS) $(CFLAGS.swig) -std=$(CXXSTD) -c $< -o $@
 
 # Rules for files generated in the build directory.
 
@@ -48,7 +48,7 @@ $(out_dir)/%.o: $(out_dir)/%.c
 $(out_dir)/%.o: $(out_dir)/%.cpp
 	@echo $(describe_env) C++ $(describe_input)
 	@mkdir -p $(@D)
-	@$(CPP) $(DEPFLAGS) $(CFLAGS) -std=gnu++11 -c $< -o $@
+	@$(CPP) $(DEPFLAGS) $(CFLAGS) -std=$(CXXSTD) -c $< -o $@
 
 $(out_dir)/%.o: $(out_dir)/%.S
 	@echo $(describe_env) ASM $(describe_input)

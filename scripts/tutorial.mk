@@ -13,7 +13,10 @@ ifndef ARCH
   endif
 endif
 
-out_dir = $(PROFILE)/$(ARCH)
+# C++ language standard, as in scripts/env.mk.
+CXXSTD ?= gnu++11
+
+out_dir = $(PROFILE)/$(ARCH)$(if $(HOST_TOOLCHAIN),-$(HOST_TOOLCHAIN))
 lib_file = $(out_dir)/$(LIBNAME).so
 package_file = $(out_dir)/$(PKGNAME)-$(PKGVERSION).pkg
 
@@ -39,16 +42,16 @@ endif
 
 ifeq ($(ARCH),linux)
 INSTALLPATH.linux = $(HOME)/.od/rear
-CFLAGS.linux = -Wno-deprecated-declarations -msse4 -fPIC
-LFLAGS = -shared
+CFLAGS.linux = -Wno-deprecated-declarations $(HOST_SIMD_FLAGS) $(HOST_MARCH) -fPIC
+LFLAGS = $(HOST_MOD_LFLAGS)
 includes += $(SDKPATH)/emu
 include $(SDKPATH)/scripts/linux.mk
 endif
 
 ifeq ($(ARCH),darwin)
 INSTALLPATH.darwin = $(HOME)/.od/rear
-CFLAGS.darwin = -Wno-deprecated-declarations -march=native -fPIC
-LFLAGS = -dynamic -undefined dynamic_lookup -lSystem
+CFLAGS.darwin = -Wno-deprecated-declarations $(HOST_SIMD_FLAGS) $(HOST_MARCH) -fPIC
+LFLAGS = $(HOST_MOD_LFLAGS)
 includes += $(SDKPATH)/emu
 include $(SDKPATH)/scripts/darwin.mk
 endif
@@ -117,7 +120,7 @@ $(out_dir)/%.o: %.c
 $(out_dir)/%.o: %.cpp
 	@echo [C++ $<]
 	@mkdir -p $(@D)
-	@$(CPP) $(CFLAGS) -std=gnu++11 -c $< -o $@
+	@$(CPP) $(CFLAGS) -std=$(CXXSTD) -c $< -o $@
 
 # SWIG wrapper rules
 
@@ -131,7 +134,7 @@ $(out_dir)/%_swig.cpp: %.cpp.swig
 $(out_dir)/%_swig.o: $(out_dir)/%_swig.cpp
 	@echo [C++ $<]
 	@mkdir -p $(@D)
-	@$(CPP) $(CFLAGS.swig) -std=gnu++11 -c $< -o $@
+	@$(CPP) $(CFLAGS.swig) -std=$(CXXSTD) -c $< -o $@
 
 ifeq ($(ARCH),am335x)
 # Optional check for any missing symbols

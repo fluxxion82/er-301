@@ -60,13 +60,9 @@ ifeq ($(ARCH),am335x)
 LFLAGS = -nostdlib -nodefaultlibs -r
 endif
 
-ifeq ($(ARCH),linux)
-LFLAGS = -shared
-endif
-
-ifeq ($(ARCH),darwin)
-# Do not try to resolve dynamic links when linking.
-LFLAGS = -dynamic -undefined dynamic_lookup -lSystem
+ifneq ($(filter linux darwin,$(ARCH)),)
+# Loadable module whose undefined symbols resolve against the emulator (scripts/host.mk).
+LFLAGS = $(HOST_MOD_LFLAGS)
 endif
 
 # Prevent swig from placing symbols exported by mods in the global namespace.

@@ -1,15 +1,2 @@
-# Build Tools for Linux
-CC := gcc -fdiagnostics-color -fmax-errors=5
-CPP := g++ -fdiagnostics-color -fmax-errors=5
-OBJCOPY := objcopy
-OBJDUMP := objdump
-ADDR2LINE := addr2line
-LD := gcc -fdiagnostics-color
-AR := gcc-ar
-SIZE := size
-STRIP := strip
-READELF := readelf
-NM := nm
-SWIG := swig
-PYTHON := python3
-ZIP := zip
+# Build tools for Linux: the host GCC lane is defined in scripts/host.mk.
+include $(dir $(lastword $(MAKEFILE_LIST)))host.mk

@@ -37,7 +37,9 @@ describe_target = $(yellowON)$@$(yellowOFF)
 describe_env = $(blueON)[$(scriptname) $(ARCH) $(PROFILE)]$(blueOFF)
 
 # Frequently used paths
-build_dir = $(PROFILE)/$(ARCH)
+# Host builds are kept apart per toolchain lane (HOST_TOOLCHAIN, from scripts/host.mk)
+# so that switching compilers never relinks objects built by another one.
+build_dir = $(PROFILE)/$(ARCH)$(if $(HOST_TOOLCHAIN),-$(HOST_TOOLCHAIN))
 libs_build_dir = $(build_dir)/libs
 arch_dir = arch
 mods_dir = mods
@@ -53,6 +55,9 @@ lua_dir = $(libs_dir)/$(lua_name)
 CFLAGS.common = -Wall -ffunction-sections -fdata-sections
 CFLAGS.only = -std=gnu11 -Werror=implicit-function-declaration
 CPPFLAGS.only = -std=gnu++11
+
+# C++ language standard for every C++ compile (firmware, emulator, mods).
+CXXSTD ?= gnu++11
 
 CFLAGS.speed = -O3 -ftree-vectorize -ffast-math
 CFLAGS.size = -Os
@@ -101,7 +106,7 @@ include scripts/linux.mk
 
 # symbols += BUILDOPT_LUA_USE_REALLOC
 includes += emu
-CFLAGS.linux = -Wno-deprecated-declarations -msse4 -fPIC
+CFLAGS.linux = -Wno-deprecated-declarations $(HOST_SIMD_FLAGS) $(HOST_MARCH) -fPIC
 
 endif
 
@@ -117,17 +122,7 @@ pkg_install_dir = $(HOME)/.od/rear
 include scripts/darwin.mk
 
 includes += emu
-# Modify this line to use ARCH_FLAGS instead of hardcoding -march=native
-CFLAGS.darwin = -Wno-deprecated-declarations $(ARCH_FLAGS) -fPIC
-endif
-
-# Move the ARCH_FLAGS definition before the darwin-specific section
-ifeq ($(shell uname -s),Darwin)
-ifeq ($(shell uname -m),arm64)
-ARCH_FLAGS=-march=armv8.2-a
-else
-ARCH_FLAGS=-march=native
-endif
+CFLAGS.darwin = -Wno-deprecated-declarations $(HOST_SIMD_FLAGS) $(HOST_MARCH) -fPIC
 endif
 
 ###########################

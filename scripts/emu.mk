@@ -25,30 +25,21 @@ objects += $(out_dir)/od/glue/app_swig.o
 objects += $(out_dir)/libs/SDL_FontCache/SDL_FontCache.o
 
 ifeq ($(ARCH),linux)
-LFLAGS += -Wl,--export-dynamic -Wl,--gc-sections
+LFLAGS += -Wl,--gc-sections
 endif
 
-ifeq ($(shell uname -s),Darwin)
-ifeq ($(shell uname -m),arm64)
-ARCH_FLAGS=-march=armv8.2-a
-else
-ARCH_FLAGS=-march=native
+# Host libraries, found through pkg-config (see scripts/host.mk).
+host_pkgs := sdl2 SDL2_ttf fftw3f
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+$(call host_require_pkgs,$(host_pkgs))
+host_pkgs_cflags := $(call host_pkg_cflags,$(host_pkgs))
+host_pkgs_libs := $(call host_pkg_libs,$(host_pkgs))
 endif
 
-# Locate our deps using brew
-sdl2 := $(shell brew --prefix sdl2)
-sdl2_ttf := $(shell brew --prefix sdl2_ttf)
-fftw := $(shell brew --prefix fftw)
-
-CFLAGS += -rdynamic
-CFLAGS += -I$(sdl2)/include -I$(sdl2)/include/SDL2 -I$(sdl2_ttf)/include -I$(fftw)/include
-CFLAGS += $(ARCH_FLAGS)
-LFLAGS += -L$(sdl2)/lib -L$(sdl2_ttf)/lib -L$(fftw)/lib
-endif
-
+CFLAGS += $(host_pkgs_cflags)
 CFLAGS += -DFIRMWARE_VERSION=\"$(FIRMWARE_VERSION)\"
 CFLAGS += -DBUILD_PROFILE=\"$(PROFILE)\"
-LFLAGS += -lSDL2 -lSDL2_ttf -lfftw3f -lm -ldl -lstdc++ 
+LFLAGS += $(HOST_EXE_LFLAGS) $(host_pkgs_libs) -lm -ldl -lstdc++
 
 all: $(out_dir)/$(program_name).elf
 
