@@ -1,0 +1,87 @@
+# syntax=docker/dockerfile:1.7
+#
+# Pinned firmware toolchain for the ER-301 (AM335x), as wanted by scripts/am335x.mk:
+# the components of TI Processor SDK RTOS AM335x 4.01.00.06 that the build uses.
+#
+#   gcc-arm-none-eabi 4.9 2015q3   Arm Launchpad archive (32-bit i386 host binaries)
+#   XDCtools 3.32.01.22 (core)     TI
+#   SYS/BIOS 6.46.05.55            TI (BitRock installer, 32-bit i386)
+#   PDK AM335x 1.0.8               TI, only for the tiimage tool; PDK is not published
+#                                  on its own, so it is taken from the SDK installer
+#                                  (PDK component only) in a throwaway stage.
+#
+# Everything is installed under /opt/ti (TI_INSTALL_DIR), a fixed path so that any
+# absolute path that reaches the binaries is the same on every machine.
+#
+# The host tools are x86 Linux only. On Apple Silicon this image runs under Docker
+# Desktop's x86 emulation (Rosetta for x86_64, qemu for the i386 binaries).
+#
+# Build and use through docker/am335x.sh; `make doctor` inside the container checks
+# the installed components against docker/toolchain.lock.
+
+ARG BASE_IMAGE=ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11
+
+# ---------------------------------------------------------------------------
+# Downloads, each verified by SHA-256.
+FROM --platform=linux/amd64 ${BASE_IMAGE} AS downloads
+ADD --checksum=sha256:c50078bfbd29e6c15615900e746f4d0acde917338e55860b0f145f57387c12ab \
+    https://launchpad.net/gcc-arm-embedded/4.9/4.9-2015-q3-update/+download/gcc-arm-none-eabi-4_9-2015q3-20150921-linux.tar.bz2 \
+    /dl/gcc-arm-none-eabi-4_9-2015q3-20150921-linux.tar.bz2
+ADD --checksum=sha256:b1c6620ef0b8eac45ef6a587f93b3238bdcf3b02dfd7e4b40d872a45c02c5cdc \
+    https://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/rtsc/3_32_01_22/exports/xdccore/xdctools_3_32_01_22_core_linux.zip \
+    /dl/xdctools_3_32_01_22_core_linux.zip
+ADD --checksum=sha256:2ad3432cafd1a93dd8cd1e56b722c979852d5c72f5defc29843d507cdd7b667a \
+    https://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/bios/sysbios/6_46_05_55/exports/bios_setuplinux_6_46_05_55.bin \
+    /dl/bios_setuplinux_6_46_05_55.bin
+ADD --checksum=sha256:043ef95ee9b3fdfa05d25a4559f135a244324e67bfd8da6768536913341220a1 \
+    https://software-dl.ti.com/processor-sdk-rtos/esd/AM335X/04_01_00_06/exports/ti-processor-sdk-rtos-am335x-evm-04.01.00.06-Linux-x86-Install.bin \
+    /dl/ti-processor-sdk-rtos-am335x-evm-04.01.00.06-Linux-x86-Install.bin
+
+# ---------------------------------------------------------------------------
+# PDK 1.0.8 from the SDK installer; only tiimage (and its source, for reference) is kept.
+FROM --platform=linux/amd64 ${BASE_IMAGE} AS pdk
+RUN --mount=type=bind,from=downloads,source=/dl,target=/dl \
+    cp /dl/ti-processor-sdk-rtos-am335x-evm-04.01.00.06-Linux-x86-Install.bin /tmp/sdk.bin \
+ && chmod +x /tmp/sdk.bin \
+ && /tmp/sdk.bin --mode unattended --prefix /opt/sdk \
+      --enable-components processor_sdk_rtos,PDK_AM335X \
+      --disable-components CG_XML,EDMA3_LLD,GNU_GCC_ARM,NDK,Processor_SDK_RTOS_AM335X,SYS_BIOS,TI_CGT_PRU,XDCtools \
+ && rm /tmp/sdk.bin \
+ && tool=/opt/sdk/pdk_am335x_1_0_8/packages/ti/starterware/tools/ti_image \
+ && mkdir -p /out/pdk_am335x_1_0_8/packages/ti/starterware/tools/ti_image/tiimage_bin \
+ && cp -p "$tool/tiimage_bin/tiimage" /out/pdk_am335x_1_0_8/packages/ti/starterware/tools/ti_image/tiimage_bin/ \
+ && cp -p "$tool/tiimage.c" /out/pdk_am335x_1_0_8/packages/ti/starterware/tools/ti_image/ \
+ && test -x /out/pdk_am335x_1_0_8/packages/ti/starterware/tools/ti_image/tiimage_bin/tiimage
+
+# ---------------------------------------------------------------------------
+# Compiler, XDCtools and SYS/BIOS.
+FROM --platform=linux/amd64 ${BASE_IMAGE} AS ti
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends bzip2 unzip libc6-i386 \
+ && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=bind,from=downloads,source=/dl,target=/dl \
+    mkdir -p /opt/ti && cd /opt/ti \
+ && tar -xjf /dl/gcc-arm-none-eabi-4_9-2015q3-20150921-linux.tar.bz2 \
+ && unzip -q /dl/xdctools_3_32_01_22_core_linux.zip \
+ && cp /dl/bios_setuplinux_6_46_05_55.bin /tmp/bios.bin && chmod +x /tmp/bios.bin \
+ && /tmp/bios.bin --mode unattended --prefix /opt/ti \
+ && rm /tmp/bios.bin \
+ && rm -f /opt/ti/bios_6_46_05_55/uninstall* /opt/ti/bios_6_46_05_55/*_install.log \
+ && test -d /opt/ti/bios_6_46_05_55/packages
+COPY --from=pdk /out/ /opt/ti/
+
+# ---------------------------------------------------------------------------
+# Final image: build tools plus /opt/ti.
+FROM --platform=linux/amd64 ${BASE_IMAGE}
+# swig is pinned to the Ubuntu 22.04 build (4.0.2), which reproduces the shipped bindings.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      make python3 zip unzip git ca-certificates libc6-i386 \
+      swig=4.0.2-1ubuntu1 \
+ && rm -rf /var/lib/apt/lists/* \
+ && git config --system --add safe.directory '*'
+COPY --from=ti /opt/ti /opt/ti
+ENV TI_INSTALL_DIR=/opt/ti \
+    LC_ALL=C.UTF-8 \
+    HOME=/tmp
+WORKDIR /src/er-301

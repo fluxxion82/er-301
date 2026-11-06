@@ -5,7 +5,7 @@ include scripts/env.mk
 firmware_archive = $(build_dir)/er-301-v$(FIRMWARE_VERSION).zip
 
 firmware_contents = $(build_dir)/app/kernel.bin
-firmware_contents += $(build_dir)/sbl/SBL
+firmware_contents += $(build_dir)/sbl/image/SBL
 firmware_contents += $(build_dir)/pbl/MLO
 firmware_contents += $(build_dir)/mods/core-$(FIRMWARE_VERSION).pkg
 firmware_contents += $(build_dir)/mods/teletype-$(FIRMWARE_VERSION).pkg
@@ -35,7 +35,7 @@ $(build_dir)/mods/core-$(FIRMWARE_VERSION).pkg:
 $(build_dir)/mods/teletype-$(FIRMWARE_VERSION).pkg:
 	+$(MAKE) -f scripts/teletype.mk PROFILE=$(PROFILE) ARCH=$(ARCH)
 	
-$(build_dir)/sbl/SBL:
+$(build_dir)/sbl/image/SBL:
 	+$(MAKE) -f scripts/sbl.mk PROFILE=$(PROFILE) ARCH=$(ARCH)
 
 $(build_dir)/pbl/MLO:

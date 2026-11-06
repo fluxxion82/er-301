@@ -39,7 +39,11 @@ objects := $(addprefix $(out_dir)/,$(c_sources:%.c=%.o) $(cpp_sources:%.cpp=%.o)
 CFLAGS += $(sysbios_cflags) -DSBL_VERSION=\"4.0-$(PROFILE)\"
 LFLAGS = $(sysbios_lflags) -Wl,--gc-sections -lm -lstdc++ -lc -lnosys -u _printf_float
 
-all: $(out_dir)/SBL
+# The image goes in its own directory: on a case-insensitive file system (macOS)
+# $(out_dir)/SBL would be the same path as the object directory $(out_dir)/sbl.
+image_file := $(out_dir)/image/SBL
+
+all: $(image_file)
 
 $(objects): $(sysbios_build_dir)/.timestamp scripts/env.mk scripts/sbl.mk
 
@@ -59,8 +63,9 @@ $(out_dir)/$(program_name).bin: $(out_dir)/$(program_name).elf
 	@$(SIZE) $<
 	@$(OBJCOPY) -O binary $< $@
 
-$(out_dir)/SBL: $(out_dir)/$(program_name).bin
+$(image_file): $(out_dir)/$(program_name).bin
 	@echo $(describe_env) TIIMAGE $(describe_target)
+	@mkdir -p $(@D)
 	@$(TIIMAGE) 0x90000000 MMCSD $< $@	
 
 clean:

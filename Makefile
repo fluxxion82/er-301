@@ -99,10 +99,15 @@ emu-clean:
 	+$(MAKE) -f scripts/lodepng.mk clean
 	+$(MAKE) -f scripts/emu.mk clean
 
+# Check the firmware toolchain (TI_INSTALL_DIR) against docker/toolchain.lock.
+# On macOS: docker/am335x.sh make doctor
+doctor:
+	@sh scripts/doctor.sh
+
 dist-clean:
 	rm -rf testing debug release
 	+$(MAKE) -C tutorial/step1 clean
 	+$(MAKE) -C tutorial/step2 dist-clean
 	+$(MAKE) -C tutorial/step3 dist-clean
 
-.PHONY: app sbl pbl emu
+.PHONY: app sbl pbl emu doctor
